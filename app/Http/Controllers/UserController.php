@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserJob; // Added UserJob model import
 use Illuminate\Http\Response;
 use App\Traits\ApiResponser;
 use Illuminate\Http\Request;
@@ -44,9 +45,18 @@ class UserController extends Controller
             'username' => 'required|max:20',
             'password' => 'required|max:20',
             'gender' => 'required|in:Male,Female,Other',
+            'jobid' => 'required|numeric|min:1|not_in:0', // Added jobid validation
         ];
         
         $this->validate($request, $rules);
+
+        // Validate if jobid exists in tbluserjob
+        try {
+            UserJob::findOrFail($request->jobid);
+        } catch (\Exception $e) {
+            return $this->errorResponse('Invalid job ID provided', Response::HTTP_BAD_REQUEST);
+        }
+
         $user = User::create($request->all());
         return $this->successResponse($user, Response::HTTP_CREATED);
     }
@@ -68,13 +78,24 @@ class UserController extends Controller
             'username' => 'max:20',
             'password' => 'max:20',
             'gender' => 'in:Male,Female,Other',
+            'jobid' => 'numeric|min:1|not_in:0', // Added jobid validation (not required for updates)
         ];
 
         $this->validate($request, $rules);
+
         $user = User::find($id);
 
         if (!$user) {
             return $this->errorResponse('User ID does not exist', Response::HTTP_NOT_FOUND);
+        }
+
+        // Validate jobid if provided in the update request
+        if ($request->has('jobid')) {
+            try {
+                UserJob::findOrFail($request->jobid);
+            } catch (\Exception $e) {
+                return $this->errorResponse('Invalid job ID provided', Response::HTTP_BAD_REQUEST);
+            }
         }
 
         $user->fill($request->all());
